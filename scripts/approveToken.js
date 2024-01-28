@@ -6,12 +6,12 @@ async function approveToken() {
     const wallet = new ethers.Wallet(privateKey, provider);
 
     const stableCoinAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-    const dcaAddress = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"; // Reemplaza con la dirección de tu contrato DCA
+    const dcaAddress = "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"; // Reemplaza con la dirección de tu contrato DCA
 
     const DOC = await ethers.getContractFactory("DOC", wallet);
     const stableCoin = DOC.attach(stableCoinAddress);
 
-    const amount = ethers.parseUnits("1000", 9); // La cantidad que deseas permitir que el contrato DCA maneje
+    const amount = ethers.parseUnits("1000", 18); // La cantidad que deseas permitir que el contrato DCA maneje
 
     const tx = await stableCoin.approve(dcaAddress, amount);
     await tx.wait();

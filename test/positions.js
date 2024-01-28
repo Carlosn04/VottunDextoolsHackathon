@@ -5,7 +5,7 @@ const fs = require('fs');
 const contractData = JSON.parse(fs.readFileSync('./deployedContract.json', 'utf8'));
 
 // Configura el proveedor y el signer
-const provider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
+const provider = new ethers.JsonRpcProvider('http://localhost:8545');
 const signer = provider.getSigner();
 
 const dcaContract = new ethers.Contract(contractData.address, contractData.abi, signer);

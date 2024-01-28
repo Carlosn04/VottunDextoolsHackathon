@@ -6,18 +6,17 @@ async function main() {
     const wallet = new ethers.Wallet(privateKey, provider);
 
     const stableCoinAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-    const dcaAddress = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+    const dcaAddress = "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"
     const mockEthAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; // Dirección nula para simular ETH
 
     const DCA = await ethers.getContractFactory("DCA", wallet);
     const dca = DCA.attach(dcaAddress);
 
     const tokenA = stableCoinAddress;
-    const tokenB = mockEthAddress;
-    const totalDeposit = ethers.parseUnits("20", 9);
-    const amountPerInterval = ethers.parseUnits("1", 9); 
+    const totalDeposit = ethers.parseUnits("150", 18);
+    const amountPerInterval = ethers.parseUnits("10", 18); 
     const interval = 60 // 60 * 60 * 24 === cada 24 horas
-    const tx = await dca.createPosition(tokenA, tokenB, totalDeposit, amountPerInterval, interval);
+    const tx = await dca.createPosition(tokenA, totalDeposit, amountPerInterval, interval);
     await tx.wait();
 
     console.log(`Deposit executed with ${totalDeposit.toString()} of StableCoin`);

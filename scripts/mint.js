@@ -10,7 +10,7 @@ async function main() {
     const stableCoin = StableCoin.attach(stableCoinAddress);
 
     const recipient = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"; // Dirección del destinatario
-    const amount = ethers.parseUnits("1000", 9); // Cantidad de tokens a acuñar
+    const amount = ethers.parseUnits("1000", 18); // Cantidad de tokens a acuñar
 
     const tx = await stableCoin.mint(recipient, amount);
     await tx.wait();

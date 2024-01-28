@@ -2,12 +2,16 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+interface ISimplePool {
+    function swapTokenAForNative(uint256 _amountA) external;
+}
+
 contract DCA {
     address public admin;
 
     struct UserPosition {
         IERC20 tokenA; // DOC - stablecoin
-        IERC20 tokenB; // RBTC
+        // tokenB; // RBTC
         uint256 amountA; // Cantidad total depositada de tokenA
         uint256 swapAmount; // Cantidad de tokenA para cada operación de DCA
         uint256 amountB; // Cantidad acumulada de tokenB después de los swaps
@@ -20,20 +24,14 @@ contract DCA {
 
     mapping(address => UserPosition) public positions;
 
-    address public poolAddress;
-
-    // Una función para establecer la dirección del pool (solo el admin puede hacerlo)
-    function setPoolAddress(address _poolAddress) public {
-       require(msg.sender == admin, "Only admin can set pool address");
-       poolAddress = _poolAddress;
-    }
+    // address public poolAddress;
 
     constructor() {
         admin = msg.sender;
     }
 
     // Depositar tokenA y crear/modificar una posición
-    function createPosition(address _tokenA, address _tokenB, uint256 _totalDeposit, uint256 _swapAmount, uint256 _interval) public {
+    function createPosition(address _tokenA, uint256 _totalDeposit, uint256 _swapAmount, uint256 _interval) public {
         IERC20 tokenA = IERC20(_tokenA);
         require(tokenA.transferFrom(msg.sender, address(this), _totalDeposit), "Transfer failed");
 
@@ -52,7 +50,6 @@ contract DCA {
         
         positions[msg.sender] = UserPosition({
             tokenA: tokenA, 
-            tokenB: IERC20(_tokenB), 
             amountA: _totalDeposit, 
             swapAmount: _swapAmount, 
             amountB: 0, 
@@ -75,11 +72,12 @@ contract DCA {
 
         if (_newSwapAmount != position.swapAmount) {
             // Actualizar la cantidad para cada operación de DCA
-            position.swapAmount = _newSwapAmount;
+        position.swapAmount = _newSwapAmount;
         }
         position.interval = _newInterval;
         position.nextSwapTime = block.timestamp + _newInterval;
     }
+
 
     // Terminar una posición
     function terminatePosition() public {
@@ -93,37 +91,43 @@ contract DCA {
 
         // Devolver los tokens B acumulados al usuario
         if (position.amountB > 0) {
-            require(position.tokenB.transfer(msg.sender, position.amountB), "Transfer of token B failed");
+            payable(msg.sender).transfer(position.amountB);
+            position.amountB = 0;
         }
 
         // Resetear la posición
         delete positions[msg.sender];
     }
 
-    // Modificar la función executeSwap
-    // function executeSwap(address _user) public {
-    //    UserPosition storage position = positions[_user];
-    //    require(block.timestamp >= position.nextSwapTime, "Not yet time for swap");
+    function executeSwap(address _user, address _poolAddress) public {
+        UserPosition storage position = positions[_user];
+        require(block.timestamp >= position.nextSwapTime, "Not yet time for swap");
 
-    //    // Realizar el swap interactuando con el contrato de pool
-    //    require(position.tokenA.approve(poolAddress, position.swapAmount), "Approve failed");
-    //    SimplePool(poolAddress).swapTokenAForNative(position.swapAmount);
+        // Instanciar el contrato SimplePool utilizando la dirección proporcionada
+        ISimplePool simplePool = ISimplePool(_poolAddress);
 
-    //    // Obtener la cantidad de criptomoneda nativa recibida
-    //    // Esta parte es simplificada, en un caso real podrías querer calcular esto de otra manera
-    //    uint256 amountReceived = address(this).balance - position.amountB;
+        // Aprobar el SimplePool para gastar tokenA
+        require(position.tokenA.approve(_poolAddress, position.swapAmount), "Approve failed");
 
-    //    // Actualizar las cantidades en la posición del usuario
-    //    position.amountA -= position.swapAmount; // Disminuir la cantidad total de tokenA
-    //    position.amountB += amountReceived; // Aumentar la cantidad acumulada de criptomoneda nativa
+        // Realizar el swap interactuando con el contrato de pool
+        simplePool.swapTokenAForNative(position.swapAmount);
 
-    //    // Actualizar el tiempo para el próximo swap
-    //    position.nextSwapTime = block.timestamp + position.interval;
-    // }
+        // Obtener la cantidad de criptomoneda nativa recibida
+        // Esta parte es simplificada, en un caso real podrías querer calcular esto de otra manera
+        uint256 amountReceived = address(this).balance - position.amountB;
+
+        // Actualizar las cantidades en la posición del usuario
+        position.amountA -= position.swapAmount; // Disminuir la cantidad total de tokenA
+        position.amountB += amountReceived; // Aumentar la cantidad acumulada de criptomoneda nativa
+
+        // Actualizar el tiempo para el próximo swap
+        position.nextSwapTime = block.timestamp + position.interval;
+    }
 
     // Función para retirar la criptomoneda nativa acumulada (en caso de que sea necesario)
     function withdrawNative(uint256 _amount) public {
         require(msg.sender == admin, "Only admin can withdraw");
+        require(_amount <= address(this).balance, "Insufficient balance");
         payable(admin).transfer(_amount);
     }
 
